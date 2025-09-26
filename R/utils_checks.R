@@ -205,8 +205,21 @@ MSstatsPrepareForDataProcess <- function(input, log_base, fix_missing) {
   )
   input <- input[, cols, with = FALSE]
 
-  input$PEPTIDE <- paste(input$PEPTIDESEQUENCE, input$PRECURSORCHARGE, sep = "_")
-  input$TRANSITION <- paste(input$FRAGMENTION, input$PRODUCTCHARGE, sep = "_")
+  # remove because it is not efficient:
+  # input$PEPTIDE <- paste(input$PEPTIDESEQUENCE, input$PRECURSORCHARGE, sep = "_")
+  data.table::setindexv(input, c("PEPTIDESEQUENCE","PRECURSORCHARGE"))  # speeds the join
+  u <- unique(input, by = c("PEPTIDESEQUENCE","PRECURSORCHARGE"))[
+    , .(PEPTIDESEQUENCE, PRECURSORCHARGE,
+        PEPTIDE = sprintf("%s_%d", PEPTIDESEQUENCE, PRECURSORCHARGE))]
+  input[u, PEPTIDE := i.PEPTIDE, on = .(PEPTIDESEQUENCE, PRECURSORCHARGE)]
+  # removed because it is not efficient:
+  # input$TRANSITION <- paste(input$FRAGMENTION, input$PRODUCTCHARGE, sep = "_")
+  data.table::setindexv(input, c("FRAGMENTION","PRODUCTCHARGE"))  # speeds the join
+  u <- unique(input, by = c("FRAGMENTION","PRODUCTCHARGE"))[
+    , .(FRAGMENTION, PRODUCTCHARGE,
+        TRANSITION = sprintf("%s_%d", FRAGMENTION, PRODUCTCHARGE))]
+  input[u, TRANSITION := TRANSITION, on = .(FRAGMENTION, PRODUCTCHARGE)]
+  
 
   if (data.table::uniqueN(input$ISOTOPELABELTYPE) > 2) {
     getOption("MSstatsLog")("ERROR",
@@ -232,6 +245,7 @@ MSstatsPrepareForDataProcess <- function(input, log_base, fix_missing) {
 #' @param .. additional parameters, currently ignored
 #' @keywords internal
 .prepareForDataProcess <- function(input, ...) {
+  browser()
   input <- as.data.table(unclass(input))
   colnames(input) <- toupper(colnames(input))
   if (is.element("PEPTIDEMODIFIEDSEQUENCE", colnames(input))) {
@@ -239,8 +253,22 @@ MSstatsPrepareForDataProcess <- function(input, log_base, fix_missing) {
       input, "PEPTIDEMODIFIEDSEQUENCE", "PEPTIDESEQUENCE"
     )
   }
-  input$PEPTIDE <- paste(input$PEPTIDESEQUENCE, input$PRECURSORCHARGE, sep = "_")
-  input$TRANSITION <- paste(input$FRAGMENTION, input$PRODUCTCHARGE, sep = "_")
+  # remove because it is not efficient:
+  # input$PEPTIDE <- paste(input$PEPTIDESEQUENCE, input$PRECURSORCHARGE, sep = "_")
+  data.table::setindexv(input, c("PEPTIDESEQUENCE","PRECURSORCHARGE"))  # speeds the join
+  u <- unique(input, by = c("PEPTIDESEQUENCE","PRECURSORCHARGE"))[
+    , .(PEPTIDESEQUENCE, PRECURSORCHARGE,
+        PEPTIDE = sprintf("%s_%d", PEPTIDESEQUENCE, PRECURSORCHARGE))]
+  input[u, PEPTIDE := i.PEPTIDE, on = .(PEPTIDESEQUENCE, PRECURSORCHARGE)]
+  
+  # remove because it is not efficient:
+  # input$TRANSITION <- paste(input$FRAGMENTION, input$PRODUCTCHARGE, sep = "_")
+  data.table::setindexv(input, c("FRAGMENTION","PRODUCTCHARGE"))  # speeds the join
+  u <- unique(input, by = c("FRAGMENTION","PRODUCTCHARGE"))[
+    , .(FRAGMENTION, PRODUCTCHARGE,
+        TRANSITION = sprintf("%s_%d", FRAGMENTION, PRODUCTCHARGE))]
+  input[u, TRANSITION := TRANSITION, on = .(FRAGMENTION, PRODUCTCHARGE)]
+  
   input$ISOTOPELABELTYPE <- factor(input$ISOTOPELABELTYPE)
   if (data.table::uniqueN(input$ISOTOPELABELTYPE) == 2) {
     levels(input$ISOTOPELABELTYPE) <- c("H", "L")
@@ -265,13 +293,20 @@ setMethod(".checkDataValidity", "MSstatsValidated", .prepareForDataProcess)
 .preProcessIntensities <- function(input, log_base) {
   INTENSITY <- ABUNDANCE <- NULL
 
-  if (any(!is.na(input$INTENSITY) & input$INTENSITY < 1, na.rm = TRUE)) {
-    n_smaller_than_1 <- sum(!is.na(input$INTENSITY) & input$INTENSITY < 1,
-      na.rm = TRUE
-    )
-    input[, INTENSITY := ifelse(!is.na(INTENSITY) & INTENSITY < 1,
-      1, INTENSITY
-    )]
+  # removed because not efficient:
+  # if (any(!is.na(input$INTENSITY) & input$INTENSITY < 1, na.rm = TRUE)) {
+  # n_smaller_than_1 <- sum(!is.na(input$INTENSITY) & input$INTENSITY < 1,
+  # na.rm = TRUE
+  # )
+  # count once, then branch
+  n_smaller_than_1 <- input[INTENSITY < 1, .N]  # NAs auto-excluded
+  if (n_smaller_than_1 > 0L) {
+    # removed because not efficient:
+    # input[, INTENSITY := ifelse(!is.na(INTENSITY) & INTENSITY < 1,
+    #   1, INTENSITY
+    # )]
+    input[!is.na(INTENSITY) & INTENSITY < 1, INTENSITY := 1]
+    
     msg <- paste("** There are", n_smaller_than_1,
       "intensities which are zero or less than 1.",
       "These intensities are replaced with 1",
@@ -304,9 +339,16 @@ setMethod(".checkDataValidity", "MSstatsValidated", .prepareForDataProcess)
   )
 
   input[, FEATURE := paste(PEPTIDE, TRANSITION, sep = "_")]
-  input[, GROUP := ifelse(LABEL == "L", GROUP_ORIGINAL, "0")]
-  input[, SUBJECT := ifelse(LABEL == "L", SUBJECT_ORIGINAL, "0")]
-
+  # removed because not efficient:
+  # input[, GROUP := ifelse(LABEL == "L", GROUP_ORIGINAL, "0")]
+  input[, GROUP := GROUP_ORIGINAL]
+  input[LABEL != "L", GROUP := "0"]
+  
+  # removed because not efficient:
+  # input[, SUBJECT := ifelse(LABEL == "L", SUBJECT_ORIGINAL, "0")]
+  input[, SUBJECT := SUBJECT_ORIGINAL]
+  input[LABEL != "L", SUBJECT := "0"]
+  
   cols <- c(
     "PROTEIN", "PEPTIDE", "TRANSITION", "FEATURE", "LABEL",
     "GROUP_ORIGINAL", "SUBJECT_ORIGINAL", "RUN", "GROUP",

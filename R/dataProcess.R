@@ -231,7 +231,6 @@ MSstatsSummarizeWithMultipleCores <- function(input, method, impute, censored_sy
   )
   # cap cores to number of groups
   ncores <- max(1L, min(numberOfCores, num_proteins))
-  
   # ---- choose summarizer once, bind as a variable to export ----
   summarizer_fun <- switch(method,
                            "TMP" = MSstatsSummarizeSingleTMP,
@@ -438,10 +437,18 @@ MSstatsSummarizeSingleTMP <- function(single_protein, impute, censored_symbol,
     single_protein[, predicted := predict(survival_fit,
                                           newdata = .SD
     )]
-    single_protein[, predicted := ifelse(censored & (LABEL == "L"), predicted, NA)]
-    single_protein[, newABUNDANCE := ifelse(censored & LABEL == "L",
-                                            predicted, newABUNDANCE
-    )]
+    # removed because not efficient:
+    # single_protein[, predicted := ifelse(censored & (LABEL == "L"), predicted, NA)]
+    single_protein[censored == FALSE | (LABEL != "L"), predicted := NA]
+    
+    # removed because not efficient:
+    # single_protein[, newABUNDANCE := ifelse(censored & LABEL == "L",
+    #                                         predicted, newABUNDANCE
+    # )]
+    single_protein[!is.na(predicted) & (LABEL == "L") & censored == TRUE,
+                   newABUNDANCE := predicted
+    ]
+    
     survival <- single_protein[, c(cols, "predicted"), with = FALSE]
   } else {
     survival <- single_protein[, cols, with = FALSE]

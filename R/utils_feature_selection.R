@@ -39,12 +39,17 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
       by.x = c("LABEL", "PROTEIN", "FEATURE", "originalRUN"),
       by.y = c("label", "protein", "feature", "run")
     )
-    input$feature_quality <- ifelse(is.na(input$feature_quality),
-      "Informative", input$feature_quality
-    )
-    input$is_outlier <- ifelse(is.na(input$is_outlier),
-      FALSE, input$is_outlier
-    )
+    # removed because not efficient:
+    # input$feature_quality <- ifelse(is.na(input$feature_quality),
+    #   "Informative", input$feature_quality
+    # )
+    input[is.na(feature_quality), feature_quality := "Informative"]
+    
+    # removed because not efficient:
+    # input$is_outlier <- ifelse(is.na(input$is_outlier),
+    #   FALSE, input$is_outlier
+    # )
+    input[is.na(is_outlier), is_outlier := FALSE]
   } else if (method %in% c("top3", "topN")) {
     msg <- paste0("** Use top", top_n, " features that have highest average of log2(intensity) across runs.")
     input <- .selectTopFeatures(input, top_n)
@@ -92,17 +97,30 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
     input$censored <- FALSE
   }
   data.table::setnames(input, "censored", "is_censored")
+  
+  # removed because not efficient:
+  # input <- input[, list(
+  #   protein = as.character(PROTEIN),
+  #   peptide = as.character(PEPTIDE),
+  #   feature = as.character(FEATURE),
+  #   run = as.character(originalRUN),
+  #   label = as.character(LABEL),
+  #   log2inty = ifelse(!(is.na(ABUNDANCE) | is_censored),
+  #     ABUNDANCE, NA
+  #   ),
+  #   is_censored
+  # )]
   input <- input[, list(
     protein = as.character(PROTEIN),
     peptide = as.character(PEPTIDE),
     feature = as.character(FEATURE),
     run = as.character(originalRUN),
     label = as.character(LABEL),
-    log2inty = ifelse(!(is.na(ABUNDANCE) | is_censored),
-      ABUNDANCE, NA
-    ),
+    log2inty = ABUNDANCE,
     is_censored
   )]
+  input[ is_censored | is.na(log2inty), log2inty := NA_real_ ]
+  
   input[, is_obs := !(is.na(log2inty) | is_censored)]
   input[, is_censored := NULL]
 
@@ -139,13 +157,20 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
   input <- .addModelVariances(input)
   input <- .addNoisyFlag(input)
 
-  input$feature_quality <- ifelse(
-    !input$unrep & !input$is_lowcvr & !input$is_noisy,
-    "Informative", "Uninformative"
-  )
-  input$is_outlier <- ifelse(input$label == "H" & input$log2inty <= 0,
-    TRUE, input$is_outlier
-  )
+  # removed because not efficient:
+  # input$feature_quality <- ifelse(
+    # !input$unrep & !input$is_lowcvr & !input$is_noisy,
+    # "Informative", "Uninformative"
+  # )
+  input[, feature_quality := "Informative"]
+  input[unrep | is_lowcvr | is_noisy, feature_quality := "Uninformative"]
+  
+  # removed because not efficient:
+  # input$is_outlier <- ifelse(input$label == "H" & input$log2inty <= 0,
+    # TRUE, input$is_outlier
+  # )
+  input[label == "H" & log2inty <= 0, is_outlier := TRUE]
+  
   input <- unique(input[, list(label, protein, feature, run, feature_quality, is_outlier)])
   input
 }
@@ -195,8 +220,13 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
     by = c("protein", "feature"),
     .SDcols = c("is_obs", "min_obs")
   ]
-  input[, is_lowcvr := ifelse(unrep, TRUE, is_lowcvr)]
-  input[, is_lowcvr := ifelse(is.na(is_lowcvr), FALSE, is_lowcvr)]
+  # removed because not efficient:
+  # input[, is_lowcvr := ifelse(unrep, TRUE, is_lowcvr)]
+  input[unrep, is_lowcvr := TRUE]
+  
+  # removed because not efficient:
+  # input[, is_lowcvr := ifelse(is.na(is_lowcvr), FALSE, is_lowcvr)]
+  input[is.na(is_lowcvr), is_lowcvr := FALSE]
 }
 
 
@@ -341,7 +371,9 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
     input[, is_noisy := svar_feature > .getQuantileCutoff(.SD),
       .SDcols = c("feature", "svar_ref")
     ]
-    input[, is_noisy := ifelse(is.na(is_noisy), FALSE, is_noisy)]
+    # removed because not efficient:
+    # input[, is_noisy := ifelse(is.na(is_noisy), FALSE, is_noisy)]
+    input[is.na(is_noisy), is_noisy := FALSE]
     input
   } else {
     input[, is_outlier := NA]
@@ -404,10 +436,14 @@ MSstatsSelectFeatures <- function(input, method, top_n = 3, min_feature_count = 
   input$result <- abs(input$model_residuals / input$s_resid_eb) > tol
   if (keep_run) {
     input[, all_missing := all(result | is.na(result)), by = "run"]
-    input[, result := ifelse(all_missing, FALSE, result)]
+    # removed because not efficient:
+    # input[, result := ifelse(all_missing, FALSE, result)]
+    input[all_missing, result := FALSE]
   }
   if (is.na(unique(input$s_resid_eb))) {
-    input$result <- rep(FALSE, nrow(input))
+    # removed because not efficient:
+    # input$result <- rep(FALSE, nrow(input))
+    input[, result := FALSE]
   }
   input$result
 }

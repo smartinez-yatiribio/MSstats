@@ -28,7 +28,6 @@
 MSstatsHandleMissing <- function(input, summary_method, impute,
                                  missing_symbol, censored_cutoff) {
   INTENSITY <- LABEL <- ABUNDANCE <- censored <- NULL
-
   if ((summary_method == "TMP" & impute) & !is.null(missing_symbol)) {
     input$censored <- FALSE
     ## if intensity = 1, but abundance > cutoff after normalization, it also should be censored.
@@ -46,17 +45,24 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
       iqr <- quantiles[4] - quantiles[2]
       multiplier <- (quantiles[5] - quantiles[4]) / iqr
       cutoff_lower <- (quantiles[2] - multiplier * iqr)
-      input$censored <- !is.na(input$INTENSITY) &
-        input$LABEL == "L" &
-        input$ABUNDANCE < cutoff_lower
+      # removed because not efficient:
+      # input$censored2 <- !is.na(input$INTENSITY) &
+        # input$LABEL == "L" &
+        # input$ABUNDANCE < cutoff_lower
+      input[, censored := !is.na(INTENSITY) & LABEL == "L" &  ABUNDANCE < cutoff_lower]
+      
       if (cutoff_lower <= 0 & !is.null(missing_symbol) & missing_symbol == "0") {
-        zero_one_filter <- !is.na(input$ABUNDANCE) & input$ABUNDANCE <= 0
-        input$censored <- ifelse(zero_one_filter, TRUE, input$censored)
+        # removed because not efficient:
+        # zero_one_filter <- !is.na(input$ABUNDANCE) & input$ABUNDANCE <= 0
+        # input$censored <- ifelse(zero_one_filter, TRUE, input$censored)
+        input[!is.na(ABUNDANCE) & ABUNDANCE <= 0, censored := TRUE]
       }
       if (!is.null(missing_symbol) & missing_symbol == "NA") {
-        input$censored <- ifelse(is.na(input$INTENSITY), TRUE,
-          input$censored
-        )
+        # removed because not efficient:
+        # input$censored <- ifelse(is.na(input$INTENSITY), TRUE,
+          # input$censored
+        # )
+        input[is.na(INTENSITY), censored := TRUE]
       }
 
       msg <- paste(
@@ -80,7 +86,9 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
         input$censored <- input$LABEL == "L" & is.na(input$ABUNDANCE)
       }
     }
-    input[, censored := ifelse(LABEL == "H", FALSE, censored)]
+    # removed because not efficient:
+    # input[, censored := ifelse(LABEL == "H", FALSE, censored)]
+    input[LABEL == "H", censored := FALSE]
   } else {
     input$censored <- FALSE
   }
@@ -97,6 +105,7 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
 #' will be removed
 #' @keywords internal
 .setCensoredByThreshold <- function(input, censored_symbol, remove50missing) {
+  browser()
   total_features <- n_obs <- newABUNDANCE <- n_obs_run <- censored <- NULL
   nonmissing_all <- ABUNDANCE_cut <- NULL
 
@@ -106,9 +115,12 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
     input[, nonmissing_all := !is.na(newABUNDANCE) & input$newABUNDANCE != 0]
   }
 
-  input[, nonmissing_all := ifelse(total_features > 1 & n_obs <= 1,
-    FALSE, nonmissing_all
-  )]
+  # removed because not efficient:
+  # input[, nonmissing_all := ifelse(total_features > 1 & n_obs <= 1,
+  #   FALSE, nonmissing_all
+  # )]
+  input[total_features > 1 & n_obs <= 1, nonmissing_all := FALSE]
+
   valid_observations <- input[
     n_obs > 1 & n_obs_run > 0 & nonmissing_all,
     .(PROTEIN, FEATURE, LABEL, newABUNDANCE)
@@ -117,20 +129,39 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
     min_abundance = min(newABUNDANCE, na.rm = TRUE)
   ), by = .(PROTEIN, FEATURE, LABEL)]
   min_abundance_by_group[, abundance_cutoff := 0.99 * min_abundance]
-  input[min_abundance_by_group, ABUNDANCE_cut := ifelse(
-    n_obs > 1 & n_obs_run > 0, abundance_cutoff, NA
-  ), on = c("PROTEIN", "FEATURE", "LABEL")]
+  
+  
+  # removed because not efficient:
+  # input[min_abundance_by_group, ABUNDANCE_cut := ifelse(
+  #   n_obs > 1 & n_obs_run > 0, abundance_cutoff, NA
+  # ), on = c("PROTEIN", "FEATURE", "LABEL")]
+  # Indices help a lot for big joins
+  setindexv(input, c("PROTEIN","FEATURE","LABEL"))
+  setindexv(min_abundance_by_group, c("PROTEIN","FEATURE","LABEL"))
+  # Pre-create the column with correct type (avoids reallocation/type guessing)
+  if (!"ABUNDANCE_cut" %in% names(input)) input[, ABUNDANCE_cut := NA_real_]
+  # Fill from i via join (no ifelse)
+  input[min_abundance_by_group,
+        ABUNDANCE_cut := i.abundance_cutoff,
+        on = .(PROTEIN, FEATURE, LABEL)]
+  # Clear rows that don't meet the condition (in-place, one pass)
+  input[n_obs <= 1L | n_obs_run <= 0L, ABUNDANCE_cut := NA_real_]
+  
   input[, any_censored := any(censored & n_obs > 1 & n_obs_run > 0),
     by = "PROTEIN"
   ]
   if (censored_symbol == "NA") {
-    input[, newABUNDANCE := ifelse(!nonmissing_all & censored & is.finite(ABUNDANCE_cut) & any_censored,
-      ABUNDANCE_cut, newABUNDANCE
-    )]
+    # removed because not efficient:
+    # input[, newABUNDANCE := ifelse(!nonmissing_all & censored & is.finite(ABUNDANCE_cut) & any_censored,
+      # ABUNDANCE_cut, newABUNDANCE
+    # )]
+    input[!nonmissing_all & censored & is.finite(ABUNDANCE_cut) & any_censored, newABUNDANCE := ABUNDANCE_cut]
   } else if (censored_symbol == "0") {
-    input[, newABUNDANCE := ifelse(!nonmissing_all & newABUNDANCE == 0 & is.finite(ABUNDANCE_cut) & any_censored,
-      ABUNDANCE_cut, newABUNDANCE
-    )]
+    # removed because not efficient:
+    # input[, newABUNDANCE := ifelse(!nonmissing_all & newABUNDANCE == 0 & is.finite(ABUNDANCE_cut) & any_censored,
+      # ABUNDANCE_cut, newABUNDANCE
+    # )]
+    input[!nonmissing_all & newABUNDANCE == 0 & is.finite(ABUNDANCE_cut) & any_censored, newABUNDANCE := ABUNDANCE_cut]
   }
 }
 
@@ -141,16 +172,20 @@ MSstatsHandleMissing <- function(input, summary_method, impute,
 #' @param censored_symbol `censoredInt` parameter to dataProcess
 #' @keywords internal
 .getNonMissingFilter <- function(input, impute, censored_symbol) {
-  if (impute) {
-    if (!is.null(censored_symbol)) {
-      if (censored_symbol == "0") {
-        nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE) & input$newABUNDANCE != 0
-      } else if (censored_symbol == "NA") {
-        nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE)
-      }
-    }
-  } else {
-    nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE) & input$newABUNDANCE != 0
-  }
-  nonmissing_filter
+  # if (impute) {
+  #   if (!is.null(censored_symbol)) {
+  #     if (censored_symbol == "0") {
+  #       nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE) & input$newABUNDANCE != 0
+  #     } else if (censored_symbol == "NA") {
+  #       nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE)
+  #     }
+  #   }
+  # } else {
+  #   nonmissing_filter <- input$LABEL == "L" & !is.na(input$newABUNDANCE) & input$newABUNDANCE != 0
+  # }
+  # nonmissing_filter
+  if (impute && !is.null(censored_symbol) && censored_symbol == "NA")
+    return(input$LABEL == "L" & !is.na(input$newABUNDANCE))
+  # default (no-impute or "0")
+  input$LABEL == "L" & !is.na(input$newABUNDANCE) & input$newABUNDANCE != 0
 }

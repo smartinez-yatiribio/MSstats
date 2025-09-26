@@ -243,9 +243,11 @@ dataProcessPlots <- function(
   all_proteins <- as.character(unique(processed$PROTEIN))
   if (remove_uninformative_feature_outlier) {
     if (is.element("feature_quality", colnames(processed))) {
-      processed[, ABUNDANCE := ifelse(
-        feature_quality == "Noninformative" | is_outlier, NA, ABUNDANCE
-      )]
+      # removed because not efficient:
+      # processed[, ABUNDANCE := ifelse(
+      #   feature_quality == "Noninformative" | is_outlier, NA, ABUNDANCE
+      # )]
+      processed[feature_quality == "Noninformative" | is_outlier, ABUNDANCE := NA_real_]
       msg <- "** Filtered out uninformative feature and outliers in the profile plots."
     } else {
       msg <- "** To remove uninformative features or outliers, please use \"featureSubset == \"highQuality\" option in \"dataProcess\" function."

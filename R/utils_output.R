@@ -174,7 +174,9 @@ MSstatsSummarizationOutput <- function(input, summarized, processed,
     } else {
       input[, nonmissing_orig := LABEL == "L" & !is.na(INTENSITY)]
     }
-    input[, nonmissing_orig := ifelse(is.na(newABUNDANCE), TRUE, nonmissing_orig)]
+    # Removed because not efficient:
+    # input[, nonmissing_orig := ifelse(is.na(newABUNDANCE), TRUE, nonmissing_orig)]
+    input[is.na(newABUNDANCE), nonmissing_orig := TRUE]
     if (impute) {
       input[, NumImputedFeature := sum(LABEL == "L" & !nonmissing_orig),
         by = c("PROTEIN", "RUN")
@@ -207,7 +209,10 @@ MSstatsSummarizationOutput <- function(input, summarized, processed,
     } else {
       input[, nonmissing_orig := LABEL == "L" & !is.na(INTENSITY)]
     }
-    input[, nonmissing_orig := ifelse(is.na(newABUNDANCE), TRUE, nonmissing_orig)]
+    # removed because not efficient:
+    # input[, nonmissing_orig := ifelse(is.na(newABUNDANCE), TRUE, nonmissing_orig)]
+    input[is.na(newABUNDANCE), nonmissing_orig := TRUE]
+    
     input[, NumImputedFeature := 0]
   }
   input

@@ -245,10 +245,13 @@ MSstatsGroupComparisonOutput <- function(input, summarization_output, log_base =
     by = "Label"
   ]
   logFC_colname <- paste0("log", log_base, "FC")
-  comparisons[, adj.pvalue := ifelse(!is.na(issue) &
-    issue == "oneConditionMissing",
-  0, adj.pvalue
-  )]
+  # removed because not efficient:
+  # comparisons[, adj.pvalue := ifelse(!is.na(issue) &
+    # issue == "oneConditionMissing",
+  # 0, adj.pvalue
+  # )]
+  comparisons[!is.na(issue) & issue == "oneConditionMissing", adj.pvalue := 0]
+  
   data.table::setnames(comparisons, "logFC", logFC_colname)
   qc <- rbindlist(model_qc_data, fill = TRUE)
   cols <- c(

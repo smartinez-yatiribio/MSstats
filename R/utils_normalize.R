@@ -256,8 +256,10 @@ MSstatsNormalize <- function(input, normalization_method, peptides_dict = NULL, 
   means_by_standard <- unique(means_by_standard)
 
   input <- merge(input, means_by_standard, all.x = TRUE, by = c("RUN", "FRACTION"))
-  input[, ABUNDANCE := ifelse(LABEL == "L", ABUNDANCE - mean_by_run + median_by_fraction, ABUNDANCE)]
-
+  # removed because not efficient:
+  # input[, ABUNDANCE := ifelse(LABEL == "L", ABUNDANCE - mean_by_run + median_by_fraction, ABUNDANCE)]
+  input[LABEL == "L", ABUNDANCE := ABUNDANCE - mean_by_run + median_by_fraction]
+  
   if (data.table::uniqueN(input$FRACTION) == 1L) {
     msg <- "Normalization : normalization with global standards protein - okay"
   } else {
