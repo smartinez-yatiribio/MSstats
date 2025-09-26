@@ -54,7 +54,8 @@ MSstatsPrepareForSummarization <- function(input, method, impute, censored_symbo
     getOption("MSstatsLog")("INFO", msg)
     getOption("MSstatsMsg")("INFO", msg)
   }
-
+  getOption("MSstatsLog")("INFO", "MSstats - .prepareSummary function")
+  getOption("MSstatsMsg")("INFO", "MSstats - .prepareSummary function")
   input <- .prepareSummary(input, method, impute, censored_symbol)
   if (!is.factor(input$PROTEIN)) input[, PROTEIN := as.factor(PROTEIN)]
   input

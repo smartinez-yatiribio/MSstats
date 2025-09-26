@@ -142,13 +142,23 @@ dataProcess <- function(
   )
   
   peptides_dict <- makePeptidesDictionary(as.data.table(unclass(raw)), normalization)
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsPrepareForDataProcess function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsPrepareForDataProcess function")
   input <- MSstatsPrepareForDataProcess(raw, logTrans, fix_missing)
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsNormalize function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsNormalize function")
   input <- MSstatsNormalize(input, normalization, peptides_dict, nameStandards)
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsMergeFractions function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsMergeFractions function")
   input <- MSstatsMergeFractions(input)
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsHandleMissing function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsHandleMissing function")
   input <- MSstatsHandleMissing(
     input, summaryMethod, MBimpute,
     censoredInt, maxQuantileforCensored
   )
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsSelectFeatures function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsSelectFeatures function")
   input <- MSstatsSelectFeatures(
     input, featureSubset, n_top_feature,
     min_feature_count
@@ -160,6 +170,8 @@ dataProcess <- function(
                           " == Start the summarization per subplot...")
   
   processed <- getProcessed(input)
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsPrepareForSummarization function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsPrepareForSummarization function")
   input <- MSstatsPrepareForSummarization(
     input, summaryMethod, MBimpute, censoredInt,
     remove_uninformative_feature_outlier
@@ -226,9 +238,12 @@ MSstatsSummarizeWithMultipleCores <- function(input, method, impute, censored_sy
   num_proteins <- length(unique(input$PROTEIN))
 
   getOption("MSstatsLog")("INFO", "Starting the cluster setup for summarization")
-  cat(paste0("Number of proteins to process: ", num_proteins),
-      sep = "\n", file = "MSstats_dataProcess_log_progress.log"
-  )
+  getOption("MSstatsMsg")("INFO", "Starting the cluster setup for summarization")
+  
+  message <- paste0("Number of proteins to process: ", num_proteins)
+  getOption("MSstatsLog")("INFO", message)
+  getOption("MSstatsMsg")("INFO", message)
+  
   # cap cores to number of groups
   ncores <- max(1L, min(numberOfCores, num_proteins))
   # ---- choose summarizer once, bind as a variable to export ----
@@ -289,6 +304,8 @@ MSstatsSummarizeWithMultipleCores <- function(input, method, impute, censored_sy
 #'
 MSstatsSummarizeWithSingleCore <- function(input, method, impute, censored_symbol,
                                            remove50missing, equal_variance) {
+  getOption("MSstatsLog")("INFO", "MSstats - MSstatsSummarizeWithSingleCore function")
+  getOption("MSstatsMsg")("INFO", "MSstats - MSstatsSummarizeWithSingleCore function")
   protein_indices <- split(seq_len(nrow(input)), list(input$PROTEIN))
   num_proteins <- length(protein_indices)
   summarized_results <- vector("list", num_proteins)

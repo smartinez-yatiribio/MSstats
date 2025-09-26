@@ -61,9 +61,17 @@ validateAnnotation <- function(msstats_table, design_type = "group comparison") 
 #' head(input)
 #'
 MSstatsPrepareForDataProcess <- function(input, log_base, fix_missing) {
+  getOption("MSstatsLog")("INFO", "MSstats - .checkDataValidity function")
+  getOption("MSstatsMsg")("INFO", "MSstats - .checkDataValidity function")
   input <- .checkDataValidity(input, fix_missing = fix_missing)
+  getOption("MSstatsLog")("INFO", "MSstats - .updateColumnsForProcessing function")
+  getOption("MSstatsMsg")("INFO", "MSstats - .updateColumnsForProcessing function")
   input <- .updateColumnsForProcessing(input)
+  getOption("MSstatsLog")("INFO", "MSstats - .preProcessIntensities function")
+  getOption("MSstatsMsg")("INFO", "MSstats - .preProcessIntensities function")
   .preProcessIntensities(input, log_base)
+  getOption("MSstatsLog")("INFO", "MSstats - .makeFactorColumns function")
+  getOption("MSstatsMsg")("INFO", "MSstats - .makeFactorColumns function")
   input <- .makeFactorColumns(input)
   input
 }
@@ -245,7 +253,6 @@ MSstatsPrepareForDataProcess <- function(input, log_base, fix_missing) {
 #' @param .. additional parameters, currently ignored
 #' @keywords internal
 .prepareForDataProcess <- function(input, ...) {
-  browser()
   input <- as.data.table(unclass(input))
   colnames(input) <- toupper(colnames(input))
   if (is.element("PEPTIDEMODIFIEDSEQUENCE", colnames(input))) {
